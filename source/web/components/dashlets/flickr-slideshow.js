@@ -706,9 +706,12 @@
                {
                   fn: function FlickrSlideshow_onConfigFeed_callback(response)
                   {
-                     // Update local userId value and reload photos
-                     this.options.userId = response.json.user.id;
-                     this.initSlideshow();
+                     if (this.options.userId != response.json.user.id)
+                     {
+                        // Update local userId value and reload photos
+                        this.options.userId = response.json.user.id;
+                        this.initSlideshow();
+                     }
                   },
                   scope: this
                },

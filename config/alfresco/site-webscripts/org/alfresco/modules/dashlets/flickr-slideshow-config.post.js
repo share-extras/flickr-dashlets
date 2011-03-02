@@ -2,17 +2,11 @@
 /**
  * GET call to local web script
  */
-function doLocalGetCall(theUrl, suppressError)
+function doLocalGetCall(theUrl)
 {
    var connector = remote.connect("http");
    var result = connector.get(url.server + url.serviceContext + theUrl);
-   if ((result.status != status.STATUS_OK) && !suppressError)
-   {
-      status.setCode(status.STATUS_INTERNAL_SERVER_ERROR, "Error during remote call. " +
-                     "Status: " + result.status + ", Response: " + result.response);
-      return null;
-   }
-   return eval('(' + result.response + ')');
+   return result;
 }
 function main()
 {
@@ -29,6 +23,11 @@ function main()
          method = "flickr.people.findByEmail";
          theUrl = "/modules/flickr/api?method=" + method + "&find_email=" + flickrUser;
       }
+      else if ((/^http:\/\/[\S]+$/).test(flickrUser)) // Test for URL
+      {
+         method = "flickr.urls.lookupUser";
+         theUrl = "/modules/flickr/api?method=" + method + "&url=" + flickrUser;
+      }
       else
       {
          method = "flickr.people.findByUsername";
@@ -36,10 +35,32 @@ function main()
       }
       if (theUrl != null)
       {
-         var resp = doLocalGetCall(theUrl);
-         if (resp.stat == "ok")
+         var result = doLocalGetCall(theUrl);
+
+         if ((result.status != status.STATUS_OK))
          {
-            userId = resp.user.id;
+            status.setCode(status.STATUS_INTERNAL_SERVER_ERROR, "Error during remote call. " +
+                           "Status: " + result.status + ", Response: " + result.response);
+            status.redirect = true;
+            return;
+         }
+         else
+         {
+            var respJson = eval('(' + result.response + ')');
+            if (respJson.stat == "ok")
+            {
+               userId = respJson.user.id;
+            }
+            else
+            {
+               model.code = respJson.code;
+               model.message = respJson.message;
+               
+               status.setCode(status.STATUS_INTERNAL_SERVER_ERROR, respJson.message);
+               status.redirect = true;
+               return;
+            }
+            model.stat = respJson.stat;
          }
       }
    }

@@ -6,5 +6,6 @@
       <method name="flickr.people.getInfo" args="user_id" />
       <method name="flickr.people.findByUsername" args="username" />
       <method name="flickr.people.findByEmail" args="find_email" />
+      <method name="flickr.urls.lookupUser" args="url" />
    </allowedMethods>
 </flickr-api>
