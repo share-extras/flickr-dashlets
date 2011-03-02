@@ -1,0 +1,6 @@
+<webscript>
+   <shortname>Flickr Slideshow</shortname>
+   <description>Display a Flickr photostream as a slideshow</description>
+   <family>dashlet</family>
+   <url>/components/dashlets/flickr-slideshow</url>
+</webscript>

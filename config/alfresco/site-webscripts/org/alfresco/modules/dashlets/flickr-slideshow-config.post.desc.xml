@@ -1,0 +1,6 @@
+<webscript>
+  <shortname>config-flickr-slideshow-handler</shortname>
+  <description>Config dialog form handler for Flickr slideshow dashlet</description>
+  <url>/modules/dashlets/flickr-slideshow/config/{componentId}</url>
+  <format default="json">argument</format>
+</webscript>

@@ -1,0 +1,10 @@
+<flickr-api>
+   <endpoint>http://api.flickr.com/services/rest</endpoint>
+   <apiKey>4ebbd4ac9455c845d9b19b4914059c88</apiKey>
+   <allowedMethods>
+      <method name="flickr.people.getPublicPhotos" args="user_id,extras" />
+      <method name="flickr.people.getInfo" args="user_id" />
+      <method name="flickr.people.findByUsername" args="username" />
+      <method name="flickr.people.findByEmail" args="find_email" />
+   </allowedMethods>
+</flickr-api>

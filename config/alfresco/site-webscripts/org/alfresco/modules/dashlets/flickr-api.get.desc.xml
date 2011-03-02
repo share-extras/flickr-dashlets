@@ -1,0 +1,6 @@
+<webscript>
+   <shortname>Flickr API Data</shortname>
+   <description>Return data from the Flickr RESTful API</description>
+   <url>/modules/flickr/api</url>
+   <format default="json">extension</format>
+</webscript>

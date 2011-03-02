@@ -1,0 +1,5 @@
+<webscript>
+  <shortname>config-flickr-slideshow</shortname>
+  <description>Configuration dialog for Flickr slideshow dashlet</description>
+  <url>/modules/dashlets/flickr-slideshow/config</url>
+</webscript>
