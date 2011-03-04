@@ -44,9 +44,11 @@
       $combine = Alfresco.util.combinePaths;
 
    /**
-    * Flickr API methods
+    * Flickr API methods - see http://www.flickr.com/services/api/ for full list
     */
    var METHOD_GET_PUBLIC_PHOTOS = "flickr.people.getPublicPhotos",
+      METHOD_GET_CONTACTS_PUBLIC_PHOTOS = "flickr.photos.getContactsPublicPhotos",
+      METHOD_GET_FAVORITES_PUBLIC_PHOTOS = "flickr.favorites.getPublicList",
       METHOD_FIND_BY_USERNAME = "flickr.people.findByUsername",
       METHOD_FIND_BY_EMAIL= "flickr.people.findByEmail",
       METHOD_PEOPLE_GET_INFO = "flickr.people.getInfo";
@@ -110,6 +112,15 @@
           * @default ""
           */
          apiKey: "",
+
+         /**
+          * Type of stream to load, either "user", "favorites" or "contacts". Option userId must also be set.
+          * 
+          * @property streamType
+          * @type string
+          * @default "user"
+          */
+         streamType: "user",
 
          /**
           * Time in milliseconds between photos
@@ -191,6 +202,7 @@
 
       /**
        * Fired by YUI when parent element is available for scripting
+       * 
        * @method onReady
        */
       onReady: function FlickrSlideshow_onReady()
@@ -212,6 +224,13 @@
          this.initSlideshow();
       },
 
+      /**
+       * Initialise, or re-initialise the slideshow. This will load (or re-load) details
+       * for the user as well as the  photo stream. This is called from onReady() as well
+       * as when the dashlet configuration is changed.
+       * 
+       * @method initSlideshow
+       */
       initSlideshow: function FlickrSlideshow_initSlideshow()
       {
          // Reset the slideshow
@@ -247,10 +266,12 @@
          Dom.setStyle(this.messageContainer, "display", "block");
          this.messageContainer.innerHTML = msg;
          this.centerElement(this.messageContainer, this.bodyContainer);
+         Dom.setStyle(this.messageContainer, "visibility", "visible");
       },
 
       /**
        * Load the user details
+       * 
        * @method loadUserDetails
        */
       loadUserDetails: function FlickrSlideshow_loadUserDetails()
@@ -282,6 +303,7 @@
       
       /**
        * User details loaded successfully
+       * 
        * @method onUserDetailsLoaded
        * @param p_response {object} Response object from request
        */
@@ -307,6 +329,7 @@
 
       /**
        * User details load failed
+       * 
        * @method onUserDetailsFailed
        */
       onUserDetailsFailed: function FlickrSlideshow_onUserDetailsFailed()
@@ -316,6 +339,7 @@
 
       /**
        * Load the photos
+       * 
        * @method refreshResults
        */
       loadPhotos: function FlickrSlideshow_loadPhotos()
@@ -327,8 +351,9 @@
             dataObj:
             {
                apiKey: this.options.apiKey,
-               method: METHOD_GET_PUBLIC_PHOTOS,
+               method: this.getFlickrMethod(),
                perPage: this.options.numPhotos,
+               count: this.options.numPhotos, // Used by flickr.photos.getContactsPublicPhotos
                page: 0,
                user_id: this.options.userId
             },
@@ -346,9 +371,36 @@
             noReloadOnAuthFailure: true
          });
       },
+
+      /**
+       * Return the full name of the Flickr method to use, based on the stream type configured for the object.
+       * 
+       * @method getStreamType
+       * @return {string} Full name of the Flickr method, or null if no matching stream type is defined
+       */
+      getFlickrMethod: function FlickrSlideshow_getFlickrMethod()
+      {
+         if (this.options.streamType === "user")
+         {
+            return METHOD_GET_PUBLIC_PHOTOS;
+         }
+         else if (this.options.streamType === "contacts")
+         {
+            return METHOD_GET_CONTACTS_PUBLIC_PHOTOS;
+         }
+         else if (this.options.streamType === "favorites")
+         {
+            return METHOD_GET_FAVORITES_PUBLIC_PHOTOS;
+         }
+         else
+         {
+            return null;
+         }
+      },
       
       /**
        * Photos loaded successfully
+       * 
        * @method onPhotosLoaded
        * @param p_response {object} Response object from request
        */
@@ -370,6 +422,7 @@
 
       /**
        * Photos load failed
+       * 
        * @method onPhotosFailed
        */
       onPhotosFailed: function FlickrSlideshow_onPhotosFailed()
@@ -450,6 +503,11 @@
          // Create the new image
          var imgEl = document.createElement('img');
          Dom.setAttribute(imgEl, "src", this.getPhotoURL(p_obj, this.getPhotoSize(p_obj)));
+         var title = this.msg("photo.title", 
+               p_obj.title ? p_obj.title : this.msg("photo.untitled"), 
+                     (p_obj.username ? p_obj.username : ((this.options.streamType == "user" && this.userDetails.username) ? this.userDetails.username._content : this.msg("photo.unknownUser"))));
+         Dom.setAttribute(imgEl, "title", title);
+         Dom.setAttribute(imgEl, "alt", title);
          Dom.setStyle(imgDiv, "opacity", "0");
          Dom.setStyle(imgDiv, "visibility", "hidden");
          Dom.setStyle(imgDiv, "position", "absolute");
@@ -478,18 +536,39 @@
       centerElement: function FlickrSlideshow_centerElement(el, parentEl)
       {
          var pregion = Dom.getRegion(parentEl),
-         cheight = pregion.bottom - pregion.top,
-         cwidth = pregion.right - pregion.left;
-         var imgregion = Dom.getRegion(el);
-         var imgwidth = imgregion.right - imgregion.left;
-         var imgheight = imgregion.bottom - imgregion.top;
-         var xOffset = Math.round((parseInt(cwidth) - parseInt(imgwidth))/2);
-         var yOffset = Math.round((parseInt(cheight) - parseInt(imgheight))/2);
+            pheight = pregion.bottom - pregion.top,
+            pwidth = pregion.right - pregion.left;
+         var elregion = Dom.getRegion(el);
+         var elwidth = elregion.right - elregion.left;
+         var elheight = elregion.bottom - elregion.top;
+         var xOffset = Math.round((parseInt(pwidth) - parseInt(elwidth))/2);
+         var yOffset = Math.round((parseInt(pheight) - parseInt(elheight))/2);
          
          Dom.setStyle(parentEl, "overflow", "hidden");
          Dom.setStyle(el, "position", "relative");
          Dom.setStyle(el, "top", "" + yOffset + "px");
-         Dom.setStyle(el, "visibility", "visible");
+      },
+
+      /**
+       * Overlay one element on top of another
+       * 
+       * @method overlayElement
+       * @param el {HTMLElement} Element to overlay
+       * @param parentEl {HTMLElement} Reference element
+       */
+      overlayElement: function FlickrSlideshow_centerElement(el, parentEl)
+      {
+         var pregion = Dom.getRegion(parentEl),
+            pheight = pregion.bottom - pregion.top,
+            pwidth = pregion.right - pregion.left;
+         var elregion = Dom.getRegion(el);
+         var elwidth = elregion.right - elregion.left;
+         var elheight = elregion.bottom - elregion.top;
+
+         Dom.setXY(el, Dom.getXY(parentEl));
+         Dom.setStyle(el, "width", "100%");
+         Dom.setStyle(el, "max-width", Dom.getStyle(parentEl, "width"));
+         Dom.setStyle(el, "height", "" + pheight + "px");
       },
 
       /**
@@ -502,48 +581,25 @@
        */
       onLoadPhoto: function FlickrSlideshow_onLoadPhoto(event, imgEl)
       {
-         // Centre the photo vertically
-         var cregion = Dom.getRegion(this.photosContainer),
-            cheight = cregion.bottom - cregion.top,
-            cwidth = cregion.right - cregion.left;
-         var imgregion = Dom.getRegion(imgEl);
-         var imgwidth = imgregion.right - imgregion.left;
-         var imgheight = imgregion.bottom - imgregion.top;
-         var xOffset = Math.round((parseInt(cwidth) - parseInt(imgwidth))/2);
-         var yOffset = Math.round((parseInt(cheight) - parseInt(imgheight))/2);
+         var divEl = imgEl.parentNode; // Photo wrapper div
          
          // Overlay div on top of photos container
-         Dom.setXY(imgEl.parentNode, Dom.getXY(this.photosContainer));
-         Dom.setStyle(imgEl.parentNode, "width", "100%");
-         //Dom.setStyle(imgEl.parentNode, "height", "100%");
-         Dom.setStyle(imgEl.parentNode, "max-width", Dom.getStyle(this.photosContainer, "width"));
-         Dom.setStyle(imgEl.parentNode, "height", "" + cheight + "px");
-         Dom.setStyle(imgEl.parentNode, "overflow", "hidden");
-         //Dom.setX(imgEl, cregion.left + xOffset);
-         //Dom.setY(imgEl, cregion.top + yOffset);
+         this.overlayElement(divEl, this.photosContainer);
 
-         Dom.setStyle(imgEl, "position", "relative");
-         Dom.setStyle(imgEl, "top", "" + yOffset + "px");
-         
-         Dom.setStyle(imgEl.parentNode, "visibility", "visible");
+         // Centre the photo vertically
+         this.centerElement(imgEl, divEl);
+
+         // Make the photo visible
+         Dom.setStyle(divEl, "visibility", "visible");
          
          // Fade in the new image
-         (new YAHOO.util.Anim(imgEl.parentNode, {
-            opacity: {
-               to: 1
-            }
-         }, 1, YAHOO.util.Easing.easeNone)).animate();
+         this.animateIn(divEl);
 
          // Fade out any old image(s)
-         var prevEl = Dom.getPreviousSibling(imgEl.parentNode);
+         var prevEl = Dom.getPreviousSibling(divEl);
          while (prevEl != null)
          {
-            (new YAHOO.util.Anim(prevEl, {
-               opacity: {
-                  from: 1,
-                  to: 0
-               }
-            }, 1, YAHOO.util.Easing.easeNone)).animate();
+            this.animateOut(prevEl);
             prevEl = Dom.getPreviousSibling(prevEl);
          }
          
@@ -608,6 +664,37 @@
          
          // Increment the counter
          this.incrementCounter();
+      },
+
+      /**
+       * Function used to animate in a new photo
+       * 
+       * @property animateInFn
+       * @param el {HTMLElement} Element to animate
+       * @type function
+       */
+      animateIn: function FlickrSlideshow_animateInFn(el) {
+         (new YAHOO.util.Anim(el, {
+            opacity: {
+               to: 1
+            }
+         }, 1, YAHOO.util.Easing.easeNone)).animate();
+      },
+
+      /**
+       * Function used to animate out an expired photo
+       * 
+       * @property animateOutFn
+       * @param el {HTMLElement} Element to animate
+       * @type function
+       */
+      animateOut: function FlickrSlideshow_animateOutFn(el) {
+         (new YAHOO.util.Anim(el, {
+            opacity: {
+               from: 1,
+               to: 0
+            }
+         }, 1, YAHOO.util.Easing.easeNone)).animate();
       },
 
       /**

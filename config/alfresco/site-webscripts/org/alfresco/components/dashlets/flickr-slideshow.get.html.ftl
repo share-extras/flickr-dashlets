@@ -3,7 +3,8 @@
    {
       "componentId": "${instance.object.id}",
       "userId": "${args.userId!''}",
-      "numPhotos": "${numPhotos!50}"
+      "numPhotos": "${numPhotos!50}",
+      "streamType": "user"
    }).setMessages(
       ${messages}
    );
