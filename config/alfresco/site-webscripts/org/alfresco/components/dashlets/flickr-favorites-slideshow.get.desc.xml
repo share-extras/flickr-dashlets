@@ -1,0 +1,6 @@
+<webscript>
+   <shortname>Flickr Favorites Slideshow</shortname>
+   <description>Display a user's favorite Flickr photos as a slideshow</description>
+   <family>dashlet</family>
+   <url>/components/dashlets/flickr-favorites-slideshow</url>
+</webscript>

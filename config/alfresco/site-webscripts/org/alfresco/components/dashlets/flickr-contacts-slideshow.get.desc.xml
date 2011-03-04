@@ -1,0 +1,6 @@
+<webscript>
+   <shortname>Flickr Contacts Slideshow</shortname>
+   <description>Display a photos from your Flickr contacts as a slideshow</description>
+   <family>dashlet</family>
+   <url>/components/dashlets/flickr-contacts-slideshow</url>
+</webscript>
