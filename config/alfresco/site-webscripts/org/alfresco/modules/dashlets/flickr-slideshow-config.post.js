@@ -10,7 +10,7 @@ function doLocalGetCall(theUrl)
 }
 function main()
 {
-   var jsonObj = jsonUtils.toObject(requestbody.content), flickrUser = jsonObj.userId, userId = "", method, theUrl;
+   var jsonObj = jsonUtils.toObject(requestbody.content), flickrUser = jsonObj.userId, userId = "", method, theUrl, result;
    
    if (flickrUser != "")
    {
@@ -22,21 +22,33 @@ function main()
       {
          method = "flickr.people.findByEmail";
          theUrl = "/modules/flickr/api?method=" + method + "&find_email=" + flickrUser;
+         result = doLocalGetCall(theUrl);
       }
       else if ((/^http:\/\/[\S]+$/).test(flickrUser)) // Test for URL
       {
          method = "flickr.urls.lookupUser";
          theUrl = "/modules/flickr/api?method=" + method + "&url=" + flickrUser;
+         result = doLocalGetCall(theUrl);
       }
       else
       {
          method = "flickr.people.findByUsername";
          theUrl = "/modules/flickr/api?method=" + method + "&username=" + stringUtils.urlEncode(flickrUser);
+         result = doLocalGetCall(theUrl);
+         if ((result.status == status.STATUS_OK) && ((/^[\w\._-]+$/).test(flickrUser)))
+         {
+            var respJson = eval('(' + result.response + ')');
+            if (respJson.stat != "ok")
+            {
+               // Try finding by URL name
+               method = "flickr.urls.lookupUser";
+               theUrl = "/modules/flickr/api?method=" + method + "&url="+ stringUtils.urlEncode("http://www.flickr.com/photos/" + flickrUser);
+               result = doLocalGetCall(theUrl);
+            }
+         }
       }
-      if (theUrl != null)
+      if (result != null)
       {
-         var result = doLocalGetCall(theUrl);
-
          if ((result.status != status.STATUS_OK))
          {
             status.setCode(status.STATUS_INTERNAL_SERVER_ERROR, "Error during remote call. " +
