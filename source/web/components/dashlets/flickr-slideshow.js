@@ -1,33 +1,9 @@
 /**
- * Copyright (C) 2005-2009 Alfresco Software Limited.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-
- * As a special exception to the terms and conditions of version 2.0 of 
- * the GPL, you may redistribute this Program in connection with Free/Libre 
- * and Open Source Software ("FLOSS") applications as described in Alfresco's 
- * FLOSS exception.  You should have recieved a copy of the text describing 
- * the FLOSS exception, and it is also available here: 
- * http://www.alfresco.com/legal/licensing
- */
- 
-/**
  * Flickr slideshow dashlet.
  * 
  * @namespace Alfresco
  * @class Alfresco.dashlet.FlickrSlideshow
+ * @author Will Abson
  */
 (function()
 {
@@ -79,10 +55,11 @@
       options:
       {
          /**
-          * The component id.
+          * The component id, used to persist dashlet configuration.
           *
           * @property componentId
           * @type string
+          * @default ""
           */
          componentId: "",
 
@@ -123,7 +100,8 @@
          streamType: "user",
 
          /**
-          * Time in milliseconds between photos
+          * Time in milliseconds between photos. Set to zero to disable auto
+          * transitions (users can still click to advance the photo)
           * 
           * @property slideshowPeriod
           * @type int
@@ -136,7 +114,8 @@
        * Body DOM container.
        * 
        * @property bodyContainer
-       * @type object
+       * @type HTMLElement
+       * @default null
        */
       bodyContainer: null,
 
@@ -144,7 +123,8 @@
        * Photos DOM container.
        * 
        * @property photosContainer
-       * @type object
+       * @type HTMLElement
+       * @default null
        */
       photosContainer: null,
 
@@ -152,7 +132,8 @@
        * User message DOM container.
        * 
        * @property messageContainer
-       * @type object
+       * @type HTMLElement
+       * @default null
        */
       messageContainer: null,
 
@@ -160,15 +141,30 @@
        * Dashlet title DOM container.
        * 
        * @property titleContainer
-       * @type object
+       * @type HTMLElement
+       * @default null
        */
       titleContainer: null,
+      
+      /**
+       * Photo overlay DOM container
+       * @type HTMLElement
+       * @default null
+       */
+      overlayContainer: null,
+      
+      /**
+       * Photo title DOM container
+       * @type HTMLElement
+       * @default null
+       */
+      overlayTitleContainer: null,
 
       /**
        * Photo objects loaded via JSON.
        * 
        * @property photos
-       * @type object
+       * @type Array
        * @default null
        */
       photos: null,
@@ -221,7 +217,17 @@
          // The dashlet title container
          this.titleContainer = Dom.get(this.id + "-title");
          
-         this.initSlideshow();
+         // Photo overlay and photo title containers
+         this.overlayContainer = Dom.get(this.id + "-overlay");
+         this.overlayTitleContainer = Dom.get(this.id + "-overlay-title");
+         
+         // Position overlay at the top of the dashlet body
+         this._overlayElement(this.overlayContainer, this.bodyContainer, false, true, false);
+         Event.addListener(this.overlayContainer, "mouseover", this.onPhotoMouseover, null, this);
+         Event.addListener(this.overlayContainer, "mouseout", this.onPhotoMouseout, null, this);
+         
+         // Start the slideshow
+         this._initSlideshow();
       },
 
       /**
@@ -229,19 +235,19 @@
        * for the user as well as the  photo stream. This is called from onReady() as well
        * as when the dashlet configuration is changed.
        * 
-       * @method initSlideshow
+       * @method _initSlideshow
        */
-      initSlideshow: function FlickrSlideshow_initSlideshow()
+      _initSlideshow: function FlickrSlideshow__initSlideshow()
       {
          // Reset the slideshow
-         this.stopTimer();
+         this._stopTimer();
          this.photosContainer.innerHTML = "";
-         this.resetCounter();
+         this._resetCounter();
          
-         // Load the results
+         // Load data
          if (this.options.userId != "")
          {
-            this.loadUserDetails();
+            this._loadUserDetails();
             Dom.setStyle(this.photosContainer, "display", "block");
             Dom.setStyle(this.id + "-message", "display", "none");
             this.loadPhotos();
@@ -250,31 +256,32 @@
          {
             this.userDetails = null;
             this.titleContainer.innerHTML = this.msg("header.default");
-            this.displayMessage(this.msg("label.notConfigured"));
+            this._displayMessage(this.msg("label.notConfigured"));
          }
       },
 
       /**
        * Display a message to the user
        * 
-       * @method displayMessage
+       * @method _displayMessage
        * @param msg {string} Message to display
        */
-      displayMessage: function FlickrSlideshow_displayMessage(msg)
+      _displayMessage: function FlickrSlideshow__displayMessage(msg)
       {
          Dom.setStyle(this.photosContainer, "display", "none");
          Dom.setStyle(this.messageContainer, "display", "block");
          this.messageContainer.innerHTML = msg;
-         this.centerElement(this.messageContainer, this.bodyContainer);
+         this._centerElement(this.messageContainer, this.bodyContainer);
          Dom.setStyle(this.messageContainer, "visibility", "visible");
       },
 
       /**
-       * Load the user details
+       * Load details about the current user from the API and update the 
+       * dashlet contents.
        * 
-       * @method loadUserDetails
+       * @method _loadUserDetails
        */
-      loadUserDetails: function FlickrSlideshow_loadUserDetails()
+      _loadUserDetails: function FlickrSlideshow__loadUserDetails()
       {
          // Load the search results
          Alfresco.util.Ajax.request(
@@ -351,7 +358,7 @@
             dataObj:
             {
                apiKey: this.options.apiKey,
-               method: this.getFlickrMethod(),
+               method: this._getFlickrMethod(),
                perPage: this.options.numPhotos,
                count: this.options.numPhotos, // Used by flickr.photos.getContactsPublicPhotos
                page: 0,
@@ -376,9 +383,10 @@
        * Return the full name of the Flickr method to use, based on the stream type configured for the object.
        * 
        * @method getStreamType
+       * @private
        * @return {string} Full name of the Flickr method, or null if no matching stream type is defined
        */
-      getFlickrMethod: function FlickrSlideshow_getFlickrMethod()
+      _getFlickrMethod: function FlickrSlideshow__getFlickrMethod()
       {
          if (this.options.streamType === "user")
          {
@@ -415,7 +423,7 @@
             }
             else
             {
-               this.displayMessage(this.msg("message.noPhotos"));
+               this._displayMessage(this.msg("message.noPhotos"));
             }
          }
       },
@@ -433,12 +441,13 @@
       /**
        * Get the URL for a specified photo
        * 
-       * @method getPhotoURL
+       * @method _getPhotoURL
+       * @private
        * @param p_obj {object} Photo object received from JSON API
        * @param size {string} Size required, e.g. s, t, m, -, z, b, o. Defaults to medium (-) if not given
        * @return {string} The photo image URL
        */
-      getPhotoURL: function FlickrSlideshow_getPhotoURL(p_obj, size)
+      _getPhotoURL: function FlickrSlideshow__getPhotoURL(p_obj, size)
       {
          size = size !== undefined ? size : "-";
          return "http://farm" + p_obj.farm + ".static.flickr.com/" + p_obj.server + "/" + p_obj.id + "_" + p_obj.secret + (size != "-" ? "_" + size : "") + ".jpg";
@@ -447,14 +456,15 @@
       /**
        * Build HTML for a specified photo
        * 
-       * @method getPhotoHTML
+       * @method _getPhotoHTML
+       * @private
        * @param p_obj {object} Photo object received from JSON API
        * @param size {string} Size required, e.g. s, t, m, -, z, b, o. Defaults to medium (-) if not given
        * @return {string} The photo markup
        */
-      getPhotoHTML: function FlickrSlideshow_getPhotoHTML(p_obj, size)
+      _getPhotoHTML: function FlickrSlideshow__getPhotoHTML(p_obj, size)
       {
-         return "<img src=\"" + this.getPhotoURL(p_obj, size) + "\"" + 
+         return "<img src=\"" + this._getPhotoURL(p_obj, size) + "\"" + 
            // typeof(p_obj['description']) != "undefined" ? " title=\"" + p_obj['description']._content + "\"" : "" +
            " />";
       },
@@ -462,11 +472,12 @@
       /**
        * Get the maximum allowable size of photos
        * 
-       * @method getPhotoSize
+       * @method _getPhotoSize
+       * @private
        * @param p_obj {object} Photo object received from JSON API
        * @return {string} The size of Flickr photos that will fit in the width photos container div
        */
-      getPhotoSize: function FlickrSlideshow_getPhotoSize(p_obj)
+      _getPhotoSize: function FlickrSlideshow__getPhotoSize(p_obj)
       {
          var region = Dom.getRegion(this.photosContainer),
             cwidth = region.right - region.left;
@@ -488,38 +499,87 @@
             return "t";
          }
       },
+
+      /**
+       * Generate a title for this photo, based on the title metadata property
+       * and the name of the owner.
+       * 
+       * @method _getPhotoTitle
+       * @private
+       * @param p_obj {object} Photo object received from JSON API
+       * @param html {boolean} Should HTML be inserted into the title
+       * @return {string} The title text to use
+       */
+      _getPhotoTitle: function FlickrSlideshow__getPhotoTitle(p_obj, html)
+      {
+         if (html)
+         {
+            return this.msg("photo.title", 
+                  p_obj.title ? "<a href=\"" + this._getPhotoUrl(p_obj) + "\">" + p_obj.title + "</a>" : this.msg("photo.untitled"), 
+                        (p_obj.username ? "<a href=\"" + this._getUserPhotosUrl(p_obj) + "\">" + p_obj.username + "</a>" : ((this.options.streamType == "user" && this.userDetails.username) ? "<a href=\"" + this.userDetails.photosurl._content + "\">" + this.userDetails.username._content + "</a>" : this.msg("photo.unknownUser"))));
+         }
+         else
+         {
+            return this.msg("photo.title", 
+                  p_obj.title ? p_obj.title : this.msg("photo.untitled"), 
+                        (p_obj.username ? p_obj.username : ((this.options.streamType == "user" && this.userDetails.username) ? this.userDetails.username._content : this.msg("photo.unknownUser"))));
+         }
+      },
+
+      /**
+       * Generate the public URL for a photo
+       * 
+       * @method _getPhotoUrl
+       * @private
+       * @param p_obj {object} Photo object received from JSON API
+       * @return {string} The photo URL
+       */
+      _getPhotoUrl: function FlickrSlideshow__getPhotoUrl(p_obj)
+      {
+         return "http://www.flickr.com/photos/" + encodeURIComponent(p_obj.owner) + "/" + encodeURIComponent(p_obj.id) + "/";
+      },
+
+      /**
+       * Generate the public URL for a user's photos page
+       * 
+       * @method _getUserPhotosUrl
+       * @private
+       * @param p_obj {object} Photo object received from JSON API
+       * @return {string} The photos page URL
+       */
+      _getUserPhotosUrl: function FlickrSlideshow__getUserPhotosUrl(p_obj)
+      {
+         return "http://www.flickr.com/photos/" + encodeURIComponent(p_obj.owner) + "/";
+      },
       
       /**
        * Display a new photo in the dashlet body. If other photos are already present, they should
        * be faded out and removed.
        * 
-       * @method addPhoto
+       * @method _addPhoto
+       * @private
        * @param p_obj {object} Photo object to show
        */
-      addPhoto: function FlickrSlideshow_addPhoto(p_obj)
+      _addPhoto: function FlickrSlideshow__addPhoto(p_obj)
       {
          // Create the new div
          var imgDiv = document.createElement('div');
          // Create the new image
          var imgEl = document.createElement('img');
-         Dom.setAttribute(imgEl, "src", this.getPhotoURL(p_obj, this.getPhotoSize(p_obj)));
-         var title = this.msg("photo.title", 
-               p_obj.title ? p_obj.title : this.msg("photo.untitled"), 
-                     (p_obj.username ? p_obj.username : ((this.options.streamType == "user" && this.userDetails.username) ? this.userDetails.username._content : this.msg("photo.unknownUser"))));
-         Dom.setAttribute(imgEl, "title", title);
+         Dom.setAttribute(imgEl, "src", this._getPhotoURL(p_obj, this._getPhotoSize(p_obj)));
+         var title = this._getPhotoTitle(p_obj, false);
          Dom.setAttribute(imgEl, "alt", title);
          Dom.setStyle(imgDiv, "opacity", "0");
          Dom.setStyle(imgDiv, "visibility", "hidden");
-         Dom.setStyle(imgDiv, "position", "absolute");
 
          imgDiv.appendChild(imgEl);
          
          // Fade in the image when it has finished loading
-         Event.addListener(imgEl, "load", this.onLoadPhoto, imgEl, this);
+         Event.addListener(imgEl, "load", this.onPhotoLoad, {el: imgEl, photo: p_obj}, this);
          
          // Stop the timer on mouseover and restart on mouseout
-         Event.addListener(imgEl, "mouseover", this.stopTimer, null, this);
-         Event.addListener(imgEl, "mouseout", this.resetTimer, null, this);
+         Event.addListener(imgEl, "mouseover", this.onPhotoMouseover, null, this);
+         Event.addListener(imgEl, "mouseout", this.onPhotoMouseout, null, this);
          Event.addListener(imgEl, "click", this.rotatePhoto, null, this);
          
          // Insert into the document
@@ -529,11 +589,12 @@
       /**
        * Center one element inside another
        * 
-       * @method centerElement
+       * @method _centerElement
+       * @private
        * @param el {HTMLElement} Element to center
        * @param parentEl {HTMLElement} Parent element
        */
-      centerElement: function FlickrSlideshow_centerElement(el, parentEl)
+      _centerElement: function FlickrSlideshow__centerElement(el, parentEl)
       {
          var pregion = Dom.getRegion(parentEl),
             pheight = pregion.bottom - pregion.top,
@@ -552,68 +613,54 @@
       /**
        * Overlay one element on top of another
        * 
-       * @method overlayElement
+       * @method _overlayElement
+       * @private
        * @param el {HTMLElement} Element to overlay
        * @param parentEl {HTMLElement} Reference element
+       * @param setWidth {boolean} Whether to set the element's width to 100% of the container. Defaults to true.
+       * @param setHeight {boolean} Whether to set the element's height to 100% of the container. Defaults to true.
        */
-      overlayElement: function FlickrSlideshow_centerElement(el, parentEl)
+      _overlayElement: function FlickrSlideshow__overlayElement(el, parentEl, setXY, setWidth, setHeight)
       {
+         if (setWidth === null)
+         {
+            setWidth = true;
+         }
+         if (setHeight === null)
+         {
+            setHeight = true;
+         }
          var pregion = Dom.getRegion(parentEl),
             pheight = pregion.bottom - pregion.top,
             pwidth = pregion.right - pregion.left;
          var elregion = Dom.getRegion(el);
          var elwidth = elregion.right - elregion.left;
          var elheight = elregion.bottom - elregion.top;
-
-         Dom.setXY(el, Dom.getXY(parentEl));
-         Dom.setStyle(el, "width", "100%");
-         Dom.setStyle(el, "max-width", Dom.getStyle(parentEl, "width"));
-         Dom.setStyle(el, "height", "" + pheight + "px");
-      },
-
-      /**
-       * Executed when the image has loaded. We need to wait until loading has
-       * finished so that we can position the photo according to its dimensions
-       * and start to fade it in.
-       * 
-       * @method onLoadPhoto
-       * @param imgEl {HTMLElement} Image element that has been loaded
-       */
-      onLoadPhoto: function FlickrSlideshow_onLoadPhoto(event, imgEl)
-      {
-         var divEl = imgEl.parentNode; // Photo wrapper div
          
-         // Overlay div on top of photos container
-         this.overlayElement(divEl, this.photosContainer);
-
-         // Centre the photo vertically
-         this.centerElement(imgEl, divEl);
-
-         // Make the photo visible
-         Dom.setStyle(divEl, "visibility", "visible");
-         
-         // Fade in the new image
-         this.animateIn(divEl);
-
-         // Fade out any old image(s)
-         var prevEl = Dom.getPreviousSibling(divEl);
-         while (prevEl != null)
+         if (setXY)
          {
-            this.animateOut(prevEl);
-            prevEl = Dom.getPreviousSibling(prevEl);
+            Dom.setXY(el, Dom.getXY(parentEl));
          }
-         
-         // Schedule next transition
-         this.resetTimer();
+         if (setWidth === true)
+         {
+            Dom.setStyle(el, "width", "100%");
+            //Dom.setStyle(el, "width", pwidth + "px");
+            //Dom.setStyle(el, "max-width", Dom.getStyle(parentEl, "width"));
+         }
+         if (setHeight === true)
+         {
+            Dom.setStyle(el, "height", "" + pheight + "px");
+         }
       },
 
       /**
        * Get the currently-displayed photo
        * 
-       * @method getCurrentPhoto
+       * @method _getCurrentPhoto
+       * @private
        * @return {HTMLElement} The currently-displayed photo, or null if there is not one present
        */
-      getCurrentPhoto: function FlickrSlideshow_getCurrentPhoto()
+      _getCurrentPhoto: function FlickrSlideshow__getCurrentPhoto()
       {
          //return Dom.getLastChildBy(this.photosContainer, function(el) { Dom.getStyle(el, "z-index") == "1" });
          return Dom.getLastChild(this.photosContainer);
@@ -622,10 +669,11 @@
       /**
        * Get any faded-out photos which are still on the page
        * 
-       * @method getExpiredPhotos
+       * @method _getExpiredPhotos
+       * @private
        * @return {Array} The HTMLElement objects representing the expired photos
        */
-      getExpiredPhotos: function FlickrSlideshow_getExpiredPhotos()
+      _getExpiredPhotos: function FlickrSlideshow__getExpiredPhotos()
       {
          if (this.photosContainer.childNodes.length > 1)
          {
@@ -639,31 +687,33 @@
       },
 
       /**
-       * Go to the next photo in the slideshow
+       * Go to the next photo in the slideshow. This is executed initially by
+       * the initial success callback and subsequently by the timer object or 
+       * mouse click events.
        * 
        * @method rotatePhoto
        */
       rotatePhoto: function FlickrSlideshow_rotatePhoto()
       {
          // First remove already faded-out photos (opacity = 0)
-         var oldImgs = this.getExpiredPhotos();
+         var oldImgs = this._getExpiredPhotos();
          for (var i = 0; i < oldImgs.length; i++)
          {
             this.photosContainer.removeChild(oldImgs[i]);
          }
          
          // If there is an existing photo, reset its z-layer to 0
-         var currImg = this.getCurrentPhoto();
+         var currImg = this._getCurrentPhoto();
          if (currImg != null)
          {
             //Dom.setStyle(currImg, "z-index", "0");
          }
          
          // Transition in the new photo
-         this.addPhoto(this.photos[this.slideshowPos]);
+         this._addPhoto(this.photos[this.slideshowPos]);
          
          // Increment the counter
-         this.incrementCounter();
+         this._incrementCounter();
       },
 
       /**
@@ -700,9 +750,10 @@
       /**
        * Increment the slideshow counter
        * 
-       * @method incrementCounter
+       * @method _incrementCounter
+       * @private
        */
-      incrementCounter: function FlickrSlideshow_incrementCounter()
+      _incrementCounter: function FlickrSlideshow__incrementCounter()
       {
          if (this.slideshowPos < this.photos.length - 1)
          {
@@ -717,9 +768,10 @@
       /**
        * Decrement the slideshow counter
        * 
-       * @method decrementCounter
+       * @method _decrementCounter
+       * @private
        */
-      decrementCounter: function FlickrSlideshow_decrementCounter()
+      _decrementCounter: function FlickrSlideshow__decrementCounter()
       {
          if (this.slideshowPos > 0)
          {
@@ -734,9 +786,10 @@
       /**
        * Reset the slideshow counter to zero
        * 
-       * @method resetCounter
+       * @method _resetCounter
+       * @private
        */
-      resetCounter: function FlickrSlideshow_resetCounter()
+      _resetCounter: function FlickrSlideshow__resetCounter()
       {
          this.slideshowPos = 0;
       },
@@ -744,21 +797,26 @@
       /**
        * Reset the slideshow timer
        * 
-       * @method resetCounter
+       * @method _resetTimer
+       * @private
        */
-      resetTimer: function FlickrSlideshow_resetTimer()
+      _resetTimer: function FlickrSlideshow__resetTimer()
       {
-         this.stopTimer();
+         this._stopTimer();
          // Schedule next transition
-         this.timer = YAHOO.lang.later(this.options.slideshowPeriod, this, this.rotatePhoto);
+         if (this.options.slideshowPeriod > 0)
+         {
+            this.timer = YAHOO.lang.later(this.options.slideshowPeriod, this, this.rotatePhoto);
+         }
       },
 
       /**
        * Stop the slideshow timer
        * 
-       * @method stopTimer
+       * @method _stopTimer
+       * @private
        */
-      stopTimer: function FlickrSlideshow_stopTimer()
+      _stopTimer: function FlickrSlideshow__stopTimer()
       {
          if (this.timer != null)
          {
@@ -797,7 +855,7 @@
                      {
                         // Update local userId value and reload photos
                         this.options.userId = response.json.user.id;
-                        this.initSlideshow();
+                        this._initSlideshow();
                      }
                   },
                   scope: this
@@ -821,6 +879,74 @@
             })
          }
          this.configDialog.show();
+      },
+
+      /**
+       * Executed when the image has loaded. We need to wait until loading has
+       * finished so that we can position the photo according to its dimensions
+       * and start to fade it in.
+       * 
+       * @method onPhotoLoad
+       * @param event {object} HTML event
+       * @param imgEl {HTMLElement} Image element that has been loaded
+       */
+      onPhotoLoad: function FlickrSlideshow_onPhotoLoad(event, obj)
+      {
+         var divEl = obj.el.parentNode; // Photo wrapper div
+         
+         // Overlay div on top of photos container
+         this._overlayElement(divEl, this.photosContainer, true, true, true);
+
+         // Centre the photo vertically
+         this._centerElement(obj.el, divEl);
+
+         // Make the photo visible
+         Dom.setStyle(divEl, "visibility", "visible");
+         
+         // Fade in the new image
+         this.animateIn(divEl);
+
+         // Fade out any old image(s)
+         var prevEl = Dom.getPreviousSibling(divEl);
+         while (prevEl != null)
+         {
+            this.animateOut(prevEl);
+            prevEl = Dom.getPreviousSibling(prevEl);
+         }
+         
+         // Update the photo title in the overlay
+         this.overlayTitleContainer.innerHTML = this._getPhotoTitle(obj.photo, true);
+         
+         // Schedule next transition
+         this._resetTimer();
+      },
+
+      /**
+       * Executed when the user moves their cursor over the current photo.
+       * 
+       * @method onPhotoMouseover
+       * @param event {object} HTML event
+       * @param el {HTMLElement} Element that triggered the mouseover event
+       */
+      onPhotoMouseover: function FlickrSlideshow_onPhotoMouseover(event, el)
+      {
+         this._stopTimer();
+         // Show the overlay
+         Dom.setStyle(this.overlayContainer, "visibility", "visible");
+      },
+
+      /**
+       * Executed when the user moves their cursor off the current photo.
+       * 
+       * @method onPhotoMouseout
+       * @param event {object} HTML event
+       * @param el {HTMLElement} Element that triggered the mouseout event
+       */
+      onPhotoMouseout: function FlickrSlideshow_onPhotoMouseout(event, el)
+      {
+         // Hide the overlay
+         Dom.setStyle(this.overlayContainer, "visibility", "hidden");
+         this._resetTimer();
       }
       
    });

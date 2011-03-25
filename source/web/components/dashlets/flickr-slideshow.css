@@ -22,8 +22,32 @@
    padding-right: 0;
    overflow: hidden;
 }
-.flickr-slideshow-dashlet .photos img
+.flickr-slideshow-dashlet .photos div
 {
    text-align: centre;
    vertical-align: middle;
+   position: absolute;
+}
+.flickr-slideshow-dashlet > .body .photo-overlay
+{
+   /* for IE */
+   filter:alpha(opacity=60);
+   /* CSS3 standard */
+   opacity:0.6;
+   background-color: #000000;
+   color: #ffffff;
+   text-align: center;
+   visibility: hidden;
+   z-index: 1;
+   position: absolute;
+   padding-left: 0;
+   padding-right: 0;
+}
+.flickr-slideshow-dashlet .photo-overlay .photo-title
+{
+   padding: 1em;
+}
+.flickr-slideshow-dashlet .photo-overlay .photo-title a
+{
+   color: #ffffff;
 }

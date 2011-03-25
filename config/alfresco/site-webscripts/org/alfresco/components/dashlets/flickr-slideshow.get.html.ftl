@@ -23,6 +23,9 @@
       </div>
    </#if>
    <div id="${args.htmlid}-body" class="body" <#if args.height??>style="height: ${args.height}px;"</#if>>
+      <div id="${args.htmlid}-overlay" class="photo-overlay">
+         <div id="${args.htmlid}-overlay-title" class="photo-title"></div>
+      </div>
       <div id="${args.htmlid}-photos" class="photos"></div>
       <div id="${args.htmlid}-message" class="message"></div>
    </div>
