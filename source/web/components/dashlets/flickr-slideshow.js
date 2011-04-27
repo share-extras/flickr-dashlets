@@ -38,7 +38,7 @@
     */
    Alfresco.dashlet.FlickrSlideshow = function FlickrSlideshow_constructor(htmlId)
    {
-      return Alfresco.dashlet.FlickrSlideshow.superclass.constructor.call(this, "Alfresco.dashlet.FlickrSlideshow", htmlId, [ "animation" ]);
+      return Alfresco.dashlet.FlickrSlideshow.superclass.constructor.call(this, "Alfresco.dashlet.FlickrSlideshow", htmlId, [ "animation", "paginator", "carousel" ]);
    };
 
    /**
@@ -107,7 +107,16 @@
           * @type int
           * @default 5000
           */
-         slideshowPeriod: 5000
+         slideshowPeriod: 5000,
+
+         /**
+          * Whether the carousel at the bottom of the dashlet should be shown
+          * 
+          * @property carouselEnabled
+          * @type boolean
+          * @default false
+          */
+         carouselEnabled: false
       },
 
       /**
@@ -272,6 +281,47 @@
             this._displayMessage(this.msg("label.notConfigured"));
          }
       },
+      
+      /**
+       * Initialise the photos carousel
+       * 
+       * @method _initCarousel
+       */
+      _initCarousel: function FlickrSlideshow__initCarousel()
+      {
+         var cEl = Dom.get(this.id + "-carousel");
+         if (cEl !== null)
+         {
+            // Set the height of the photos container to leave space for the carousel
+            var cregion = Dom.getRegion(this.photosContainer),
+               cheight = cregion.bottom - cregion.top,
+               cwidth = cregion.right - cregion.left,
+               numVisible = Math.floor(cwidth/79),
+               offset = Math.floor(numVisible / 2),
+               margin = Math.floor((cwidth - numVisible * 79) / 2);
+            Dom.setStyle(this.photosContainer, "height", (cheight - 90) + "px");
+
+            Dom.setStyle(cEl, "padding-left", margin + "px");
+            
+            var carousel = new YAHOO.widget.Carousel(this.id + "-carousel", {
+               animation: { speed: 0.5 },
+               numVisible: numVisible
+            });
+            // Populate the carousel items
+            for (var i = 0; i < this.photos.length; i++)
+            {
+               carousel.addItem(this._getPhotoHTML(this.photos[i], "s"));
+            }
+            carousel.subscribe("itemSelected", function (index) {
+               this._stopTimer();
+               this._setCounter(index);
+               this.rotatePhoto();
+               carousel.scrollTo(index >= offset ? index - offset : 0, true);
+            }, this, true);
+            carousel.render(); // get ready for rendering the widget
+            carousel.show();   // display the widget
+         }
+      },
 
       /**
        * Display a message to the user
@@ -433,6 +483,10 @@
             if (this.photos.length > 0)
             {
                this.rotatePhoto();
+               if (this.options.carouselEnabled === true)
+               {
+                  this._initCarousel();
+               }
             }
             else
             {
@@ -479,6 +533,7 @@
       {
          return "<img src=\"" + this._getPhotoURL(p_obj, size) + "\"" + 
            // typeof(p_obj['description']) != "undefined" ? " title=\"" + p_obj['description']._content + "\"" : "" +
+           (size == "s" ? " height=\"75\" width=\"75\"" : "") +
            " />";
       },
 
@@ -715,13 +770,6 @@
             this.photosContainer.removeChild(oldImgs[i]);
          }
          
-         // If there is an existing photo, reset its z-layer to 0
-         var currImg = this._getCurrentPhoto();
-         if (currImg != null)
-         {
-            //Dom.setStyle(currImg, "z-index", "0");
-         }
-         
          // Transition in the new photo
          this._addPhoto(this.photos[this.slideshowPos]);
          
@@ -805,6 +853,18 @@
       _resetCounter: function FlickrSlideshow__resetCounter()
       {
          this.slideshowPos = 0;
+      },
+
+      /**
+       * Set the slideshow counter to a specific value
+       * 
+       * @method _setCounter
+       * @private
+       * @param i {int} Value to set the counter to
+       */
+      _setCounter: function FlickrSlideshow__setCounter(i)
+      {
+         this.slideshowPos = i;
       },
 
       /**
