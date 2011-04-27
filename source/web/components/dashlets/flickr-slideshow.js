@@ -226,6 +226,19 @@
          Event.addListener(this.overlayContainer, "mouseover", this.onPhotoMouseover, null, this);
          Event.addListener(this.overlayContainer, "mouseout", this.onPhotoMouseout, null, this);
          
+         // Initialise the dashlet when all the other dashlets have loaded
+         Event.onContentReady("bd", this.onContainerReady, null, this);
+      },
+
+      /**
+       * Initialise the dashlet. We defer doing this because in order to load photos we need to know the final
+       * dimensions of the dashlet body, after all the other dashboard columns have loaded.
+       *
+       * @method onContainerReady
+       * @param e {object} HTML event
+       */
+      onContainerReady: function FlickrSlideshow_onContainerReady(e)
+      {
          // Start the slideshow
          this._initSlideshow();
       },
