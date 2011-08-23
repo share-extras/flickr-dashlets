@@ -4,7 +4,8 @@
       "componentId": "${instance.object.id}",
       "userId": "${args.userId!''}",
       "numPhotos": "${numPhotos!50}",
-      "streamType": "contacts"
+      "streamType": "contacts",
+      "carouselEnabled": ${(args.carouselEnabled!true)?string}
    }).setMessages(
       ${messages}
    );

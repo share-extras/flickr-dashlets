@@ -114,9 +114,9 @@
           * 
           * @property carouselEnabled
           * @type boolean
-          * @default false
+          * @default true
           */
-         carouselEnabled: false
+         carouselEnabled: true
       },
 
       /**
@@ -230,6 +230,9 @@
          this.overlayContainer = Dom.get(this.id + "-overlay");
          this.overlayTitleContainer = Dom.get(this.id + "-overlay-title");
          
+         // Carousel element
+         this.widgets.carouselEl = Dom.get(this.id + "-carousel");
+         
          // Position overlay at the top of the dashlet body
          this._overlayElement(this.overlayContainer, this.bodyContainer, false, true, false);
          Event.addListener(this.overlayContainer, "mouseover", this.onPhotoMouseover, null, this);
@@ -289,21 +292,57 @@
        */
       _initCarousel: function FlickrSlideshow__initCarousel()
       {
-         var cEl = Dom.get(this.id + "-carousel");
+         var imgwidth = 75, imgheight = 75, imgborder = 1, imgpadding = 1, cpadding = 5, cbar = 5;
+         var cEl = this.widgets.carouselEl;
          if (cEl !== null)
          {
             // Set the height of the photos container to leave space for the carousel
-            var cregion = Dom.getRegion(this.photosContainer),
+            var bdregion = Dom.getRegion(this.bodyContainer), // dashlet body region
+               cregion = Dom.getRegion(this.photosContainer),
                cheight = cregion.bottom - cregion.top,
                cwidth = cregion.right - cregion.left,
-               numVisible = Math.floor(cwidth/79),
-               offset = Math.floor(numVisible / 2),
-               margin = Math.floor((cwidth - numVisible * 79) / 2);
-            Dom.setStyle(this.photosContainer, "height", (cheight - 90) + "px");
-
-            Dom.setStyle(cEl, "padding-left", margin + "px");
+               cbodyheight = imgheight + imgborder*2 + imgpadding*2 + cpadding*2;
             
-            var carousel = new YAHOO.widget.Carousel(this.id + "-carousel", {
+            if (this.options.carouselEnabled === true)
+            {
+               Dom.setStyle(this.photosContainer, "height", (cheight - (cbodyheight + cbar)) + "px");
+               Dom.setStyle(cEl, "display", "block");
+               this._createCarousel();
+            }
+            else
+            {
+               Dom.setStyle(this.photosContainer, "height", (cheight - cbar) + "px");
+               Dom.setStyle(cEl, "display", "none");
+            }
+         }
+         var barEl = Dom.get(this.id + "-carousel-bar");
+         if (barEl != null)
+         {
+            Event.addListener(barEl, "click", this.onCarouselClick, null, this);
+         }
+      },
+      
+      /**
+       * Create the photos carousel widget
+       * 
+       * @method _createCarousel
+       */
+      _createCarousel: function FlickrSlideshow__createCarousel()
+      {
+         var imgwidth = 75, imgheight = 75, imgborder = 1, imgpadding = 1, cpadding = 5, cbar = 5;
+         if (typeof this.widgets.carousel == "undefined")
+         {
+            // Set the height of the photos container to leave space for the carousel
+            var bdregion = Dom.getRegion(this.bodyContainer), // dashlet body region
+                cregion = Dom.getRegion(this.photosContainer),
+                cheight = cregion.bottom - cregion.top,
+                cwidth = cregion.right - cregion.left,
+                numVisible = Math.floor(cwidth/(imgwidth + imgborder*2 + imgpadding*2)),
+                offset = Math.floor(numVisible / 2),
+                margin = Math.floor((cwidth - numVisible * (imgwidth + imgborder*2 + imgpadding*2)) / 2)
+                cbodyheight = imgheight + imgborder*2 + imgpadding*2 + cpadding*2;
+             
+            var carousel = new YAHOO.widget.Carousel(this.widgets.carouselEl, {
                animation: { speed: 0.5 },
                numVisible: numVisible
             });
@@ -320,6 +359,9 @@
             }, this, true);
             carousel.render(); // get ready for rendering the widget
             carousel.show();   // display the widget
+            this.widgets.carousel = carousel;
+            
+            Dom.setStyle(this.widgets.carouselEl, "padding-left", margin + "px");
          }
       },
 
@@ -483,10 +525,7 @@
             if (this.photos.length > 0)
             {
                this.rotatePhoto();
-               if (this.options.carouselEnabled === true)
-               {
-                  this._initCarousel();
-               }
+               this._initCarousel();
             }
             else
             {
@@ -1020,7 +1059,59 @@
          // Hide the overlay
          Dom.setStyle(this.overlayContainer, "visibility", "hidden");
          this._resetTimer();
-      }
+      },
+
+      /**
+       * Carousel click handler. Executed when a user clicks on the carousel to hide/show it.
+       *
+       * @method onCarouselClick
+       * @param e {object} HTML event
+       */
+      onCarouselClick: function  FlickrSlideshow_onCarouselClick(event, el)
+      {
+          var ccregion = Dom.getRegion(this.widgets.carouselEl),
+              ccheight = ccregion.bottom - ccregion.top,
+              pcregion = Dom.getRegion(this.photosContainer),
+              pcheight = pcregion.bottom - pcregion.top;
+          
+          var oldDisplay = Dom.getStyle(this.widgets.carouselEl, "display") || "block";
+          var display = oldDisplay == "block" ? "none" : "block";
+          Dom.setStyle(this.widgets.carouselEl, "display", display);
+          if (display == "none")
+          {
+              Dom.setStyle(this.photosContainer, "height", (pcheight + ccheight) + "px");
+          }
+          else
+          {
+              this._createCarousel();
+              ccregion = Dom.getRegion(this.widgets.carouselEl); // Refresh region info
+              ccheight = ccregion.bottom - ccregion.top;
+              Dom.setStyle(this.photosContainer, "height", "" + (pcheight - ccheight) + "px");
+          }
+          
+          // Re-position the photos inside the resized photo container
+          for (var i = 0; i < this.photosContainer.childNodes.length; i++)
+          {
+             var divEl = this.photosContainer.childNodes[i];
+             this._overlayElement(divEl, this.photosContainer, true, true, true);
+             this._centerElement(divEl.firstChild, divEl);
+          }
+          
+          // Persist carousel state to the dashlet config
+          Alfresco.util.Ajax.jsonRequest(
+          {
+              method: "POST",
+              url: Alfresco.constants.URL_SERVICECONTEXT + "modules/dashlet/config/" + this.options.componentId,
+              dataObj:
+              {
+                  carouselEnabled: display == "block"
+              },
+              successCallback: function(){},
+              successMessage: null,
+              failureCallback: function(){},
+              failureMessage: null
+          });
+       }
       
    });
 })();

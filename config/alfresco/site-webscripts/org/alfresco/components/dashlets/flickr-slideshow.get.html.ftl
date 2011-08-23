@@ -4,7 +4,8 @@
       "componentId": "${instance.object.id}",
       "userId": "${args.userId!''}",
       "numPhotos": "${numPhotos!50}",
-      "streamType": "user"
+      "streamType": "user",
+      "carouselEnabled": ${(args.carouselEnabled!true)?string}
    }).setMessages(
       ${messages}
    );
@@ -28,6 +29,9 @@
       </div>
       <div id="${args.htmlid}-photos" class="photos"></div>
       <div id="${args.htmlid}-message" class="message"></div>
-      <div id="${args.htmlid}-ccontainer" class="ccontainer"><div id="${args.htmlid}-carousel" class="carousel"><ol></ol></div></div>
+      <div id="${args.htmlid}-ccontainer" class="ccontainer">
+      	<div id="${args.htmlid}-carousel-bar" class="carousel-bar"></div>
+      	<div id="${args.htmlid}-carousel" class="carousel"><ol></ol></div>
+   	</div>
    </div>
 </div>
