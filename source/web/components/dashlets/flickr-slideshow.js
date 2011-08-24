@@ -331,8 +331,9 @@
                 
                 Dom.setStyle(cEl.parentNode, "display", "block");
             }
+            
+            this._createCarousel();
          }
-         this._createCarousel();
       },
       
       /**

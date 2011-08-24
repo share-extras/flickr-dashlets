@@ -29,5 +29,9 @@
       </div>
       <div id="${args.htmlid}-photos" class="photos"></div>
       <div id="${args.htmlid}-message" class="message"></div>
+      <div id="${args.htmlid}-ccontainer" class="ccontainer" style="display: none;">
+      	<div id="${args.htmlid}-carousel-bar" class="carousel-bar"></div>
+      	<div id="${args.htmlid}-carousel" class="carousel"><ol></ol></div>
+   	</div>
    </div>
 </div>
