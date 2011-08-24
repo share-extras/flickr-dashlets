@@ -351,17 +351,19 @@
             {
                carousel.addItem(this._getPhotoHTML(this.photos[i], "s"));
             }
-            carousel.subscribe("itemSelected", function (index) {
-               this._stopTimer();
-               this._setCounter(index);
-               this.rotatePhoto();
-               carousel.scrollTo(index >= offset ? index - offset : 0, true);
-            }, this, true);
             carousel.render(); // get ready for rendering the widget
             carousel.show();   // display the widget
+            carousel.subscribe("itemSelected", function (index) {
+                this._stopTimer();
+                this._setCounter(index);
+                this.rotatePhoto();
+             }, this, true);
+            
             this.widgets.carousel = carousel;
             
             Dom.setStyle(this.widgets.carouselEl, "padding-left", margin + "px");
+
+            this._scrollCarousel(this.slideshowPos - 1);
          }
       },
 
@@ -937,6 +939,33 @@
       },
 
       /**
+       * Scroll the carousel, if it exists, to the current slideshow position
+       * 
+       * @method _scrollCarousel
+       * @private
+       */
+      _scrollCarousel: function FlickrSlideshow__scrollCarousel(pos)
+      {
+          pos = (typeof pos != "undefined") ? pos : this.slideshowPos;
+          if (typeof this.widgets.carousel != "undefined")
+          {
+              var nv = parseInt(this.widgets.carousel.get("numVisible")),
+                  cpos = pos - Math.floor(nv / 2);
+              if (cpos < 0)
+              {
+                  cpos = 0;
+              }
+              else if ((cpos + nv) > (this.photos.length - 1))
+              {
+                  cpos = this.photos.length - nv;
+              }
+              this.widgets.carousel.scrollTo(cpos, true);
+              Dom.removeClass(this.widgets.carousel.getElementForItems(), "yui-carousel-item-selected");
+              Dom.addClass(this.widgets.carousel.getElementForItem(pos), "yui-carousel-item-selected");
+          }
+      },
+
+      /**
        * YUI WIDGET EVENT HANDLERS
        * Handlers for standard events fired from YUI widgets, e.g. "click"
        */
@@ -1028,6 +1057,9 @@
          
          // Update the photo title in the overlay
          this.overlayTitleContainer.innerHTML = this._getPhotoTitle(obj.photo, true);
+         
+         // Scroll carousel, if enabled
+         this._scrollCarousel(this.slideshowPos > 0 ? this.slideshowPos - 1 : this.photos.length - 1);
          
          // Schedule next transition
          this._resetTimer();
