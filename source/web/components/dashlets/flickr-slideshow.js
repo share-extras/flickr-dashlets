@@ -646,7 +646,7 @@
          if (html)
          {
             return this.msg("photo.title", 
-                  p_obj.title ? "<a href=\"" + this._getPhotoUrl(p_obj) + "\">" + p_obj.title + "</a>" : this.msg("photo.untitled"), 
+                  "<a href=\"" + this._getPhotoUrl(p_obj) + "\">" + (p_obj.title ? p_obj.title : this.msg("photo.untitled")) + "</a>", 
                         (p_obj.username ? "<a href=\"" + this._getUserPhotosUrl(p_obj) + "\">" + p_obj.username + "</a>" : ((this.options.streamType == "user" && this.userDetails.username) ? "<a href=\"" + this.userDetails.photosurl._content + "\">" + this.userDetails.username._content + "</a>" : this.msg("photo.unknownUser"))));
          }
          else
