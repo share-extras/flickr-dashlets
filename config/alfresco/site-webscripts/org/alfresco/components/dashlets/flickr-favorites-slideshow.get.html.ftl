@@ -1,5 +1,7 @@
 <script type="text/javascript">//<![CDATA[
-   new Alfresco.dashlet.FlickrSlideshow("${args.htmlid}").setOptions(
+(function()
+{
+   var dashlet = new Alfresco.dashlet.FlickrSlideshow("${args.htmlid}").setOptions(
    {
       "componentId": "${instance.object.id}",
       "userId": "${args.userId!''}",
@@ -9,7 +11,44 @@
    }).setMessages(
       ${messages}
    );
-   new Alfresco.widget.DashletResizer("${args.htmlid}", "${instance.object.id}");
+   var resizer = new Alfresco.widget.DashletResizer("${args.htmlid}", "${instance.object.id}");
+   // Add end resize event handler
+   var timer = YAHOO.lang.later(1000, this, function(dashlet, resizer) {
+      if (resizer.widgets.resizer)
+      {
+         resizer.widgets.resizer.on("endResize", function(eventTarget)
+         {
+            dashlet.onEndResize(eventTarget.height);
+         }, dashlet, true);
+         timer.cancel();
+      }
+   }, [dashlet, resizer], true);
+   
+   var editDashletEvent = new YAHOO.util.CustomEvent("onDashletConfigure");
+   editDashletEvent.subscribe(dashlet.onConfigClick, dashlet, true);
+
+   new Alfresco.widget.DashletTitleBarActions("${args.htmlid}").setOptions(
+   {
+      actions:
+      [
+<#if hasConfigPermission>
+         {
+            cssClass: "edit",
+            eventOnClick: editDashletEvent,
+            tooltip: "${msg("dashlet.edit.tooltip")?js_string}"
+         },
+</#if>
+         {
+            cssClass: "help",
+            bubbleOnClick:
+            {
+               message: "${msg("dashlet.help")?js_string}"
+            },
+            tooltip: "${msg("dashlet.help.tooltip")?js_string}"
+         }
+      ]
+   });
+})();
 //]]></script>
 
 <div class="dashlet flickr-slideshow-dashlet">
@@ -17,11 +56,6 @@
    <div class="title" id="${args.htmlid}-title">&nbsp;</div>
    <#else>
    <div class="title" id="${args.htmlid}-title">${msg("header.default")}</div>
-   </#if>
-   <#if hasConfigPermission>
-      <div class="toolbar">
-         <a id="${args.htmlid}-configure-link" class="theme-color-1" title="${msg('link.configure')}" href="">${msg("link.configure")}</a>
-      </div>
    </#if>
    <div id="${args.htmlid}-body" class="body" <#if args.height??>style="height: ${args.height}px;"</#if>>
       <div id="${args.htmlid}-overlay" class="photo-overlay">
