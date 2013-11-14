@@ -68,6 +68,11 @@
    padding-top: 5px;
    padding-bottom: 5px;
 }
+/* Fix for vertical 5px margin which is added on the ol element in the light theme */
+.flickr-slideshow-dashlet .yui-carousel-element
+{
+   margin: 0 0;
+}
 .flickr-slideshow-dashlet .yui-carousel-element li
 {
    height: 75px;
@@ -94,7 +99,7 @@
 {
    display: none;
 }
-.yui-skin-default .flickr-slideshow-dashlet .yui-carousel, .yui-skin-default .flickr-slideshow-dashlet .yui-carousel-vertical
+.alfresco-share .flickr-slideshow-dashlet .yui-carousel, .alfresco-share .flickr-slideshow-dashlet .yui-carousel-vertical
 {
     border: 0px none;
 }
